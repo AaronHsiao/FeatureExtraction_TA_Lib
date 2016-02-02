@@ -80,64 +80,110 @@ namespace FeatureExtractionWith_TA_Lib
 			//list_Date.Count
 			for(int i = 0; i<1; i++)
 			{
-				List<Double> list_fReturn_100= new List<Double> ();
-				List<Double> list_MA_100 = new List<Double> ();
+				List<Double> list_fReturn= new List<Double> ();
+				List<Double> list_fTA = new List<Double> ();
 
-				//為了算報酬率每天前面的(t分鐘)被捨棄，且要預測未來，後面(買進持有+延遲決策)的分鐘也捨棄
-				for(int j=accumulate_Record+t; j<accumulate_Record+list_OneDayRecords[i]-buy_Hold-delay_Decision; j++)
+				int[] frequency = new int[]{100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 1};
+
+				//算出各種頻率的報酬當Feature
+				for (int f = 0; f<frequency.Length; f++)
 				{
-					list_fReturn_100.Add (Convert.ToDouble (raw_Data [j] [4]) / Convert.ToDouble (raw_Data [j - 100] [4]) - 1.0);
-				}
+					//為了算報酬率每天前面的(t分鐘)被捨棄，且要預測未來，後面(買進持有+延遲決策)的分鐘也捨棄
+					for(int j=accumulate_Record+t; j<accumulate_Record+list_OneDayRecords[i]-buy_Hold-delay_Decision; j++)
+					{
+						list_fReturn.Add (Convert.ToDouble (raw_Data [j] [4]) / Convert.ToDouble (raw_Data [j - frequency[f]] [4]) - 1.0);
+					}
 
-				double[] inReal = new double[list_OneDayRecords[i]];	//輸入的資料
-				double[] outResult = new double[list_OneDayRecords[i]];	//輸出的結果
+					//每算好一種頻率的報酬，就加到最大張的List of List
+					list_Feature.Add (list_fReturn);
+					//不能用List.clear() 要保留其值，故改用new出新的一塊List給下一個feature使用
+					list_fReturn = new List<Double> ();
+				}
+					
+				double[] inReal = new double[list_OneDayRecords[i]];	//輸入的資料(一天)
+				double[] outResult = new double[list_OneDayRecords[i]];	//輸出的結果(一天)
+
+				//由於技術指標是一次輸入一個陣列，並回傳結果陣列，所以我必須將原始資料Records整理成"一天"，再餵入Function進行處理
 				for (int z=accumulate_Record; z<accumulate_Record+list_OneDayRecords[i]; z++)
 				{
 					inReal [z] = raw_Data [z] [4];
 				}
 
-				Console.WriteLine (list_OneDayRecords [i]);
-				Console.ReadLine ();
+				//確認每天存的資料筆數
+				//Console.WriteLine (list_OneDayRecords [i]);
+				//Console.ReadLine ();
 
 				int startIdx = 0;
 				int endIdx = 0;
 				endIdx = list_OneDayRecords[i]-1;
 				int outBeg = 0;
 				int outNbElement = 0;
+				int max_Frequency = frequency [0];
+				List<Double[]> list_tempOutput = new List<Double[]> (); 
 
+				//算出各種技術指標當Feature
+				for (int f = 0; f < frequency.Length; f++) 
+				{
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Dema, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Ema, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Kama, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Mama, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Sma, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.T3, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Tema, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Trima, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.MovingAverage (startIdx, endIdx, inReal, frequency[f], Core.MAType.Wma, out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
+					Core.Rsi(startIdx, endIdx, inReal, frequency[f], out outBeg, out outNbElement, outResult);
+					list_tempOutput.Add (outResult);
 
-				String s = Core.MovingAverage (0, endIdx, inReal, 30, Core.MAType.Sma, out outBeg, out outNbElement, outResult).ToString();
+					//把暫存在list_tempOutput的各種技術指標，從Double[]取出，抓出正確的資料範圍，存入List，處理好單一Feature再存入List of List
+					foreach(double[] arr in list_tempOutput)
+					{
+						//由於30MA的TA-Lib會自動忽略無法算值之前29筆，
+						//output最少的100MA的TA-Lib自動忽略無法算值之前99筆，
+						//為了確保每條Feature個數一樣多，所以30MA的結果，還要放棄前面(99-29)筆資料，達到Feature對齊
+						//從1開始，是因為Return跟其他技術指標差一，故捨棄第一筆資料(index=0)
+						for (int h = 1+(max_Frequency-frequency[f]); h < outNbElement-buy_Hold-delay_Decision; h++) 
+						{
+							list_fTA.Add (arr [h]);
+						}
+							
+						list_Feature.Add(list_fTA);
+						list_fTA = new List<Double> ();
+					}
 
-				Console.WriteLine (s);
-
-
-				list_Feature.Add (list_fReturn_100);
-
+					//算好一個頻率的各技術指標後，Reset暫存用的list
+					list_tempOutput = new List<double[]>();
+						
+				}
+					
 				//記錄前一天有幾筆資料，下一天要接續
 				accumulate_Record += list_OneDayRecords[i];
-
-				for (int x = 0; x<297; x++)
-				{
-					Console.WriteLine (x + ": " +outResult[x]);
-
-				}
-				Console.ReadLine ();
 			}
 				
+			int ccc = 0;
 
+			Console.WriteLine (list_Feature.Count);
+			Console.ReadLine ();
 
 
 			foreach(List<Double> lst in list_Feature)
 			{
-				int i = 1;
-				foreach (Double d in lst) {
-					Console.WriteLine (i + ": " + d);
-					i++;
-				}
-				Console.ReadLine ();
+				Console.WriteLine (ccc + ", " + lst.Count);
+				ccc += 1;
 			}
 
 			Console.ReadLine ();
 		}
 	}
 }
+	

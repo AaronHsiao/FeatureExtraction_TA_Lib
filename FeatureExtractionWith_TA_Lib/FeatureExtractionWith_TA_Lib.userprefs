@@ -1,1 +1,12 @@
-﻿<Properties StartupItem="FeatureExtractionWith_TA_Lib\FeatureExtractionWith_TA_Lib.csproj" />
+﻿<Properties StartupItem="FeatureExtractionWith_TA_Lib\FeatureExtractionWith_TA_Lib.csproj">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="FeatureExtractionWith_TA_Lib\Program.cs">
+    <Files>
+      <File FileName="FeatureExtractionWith_TA_Lib\Program.cs" Line="111" Column="5" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
